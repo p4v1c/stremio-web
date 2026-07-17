@@ -11,6 +11,7 @@ const { default: Icon } = require('@stremio/stremio-icons/react');
 const { default: useRouteFocused } = require('stremio/common/useRouteFocused');
 const Button = require('stremio/components/Button').default;
 const TextInput = require('stremio/components/TextInput').default;
+const VirtualKeyboard = require('stremio/components/VirtualKeyboard').default;
 const { default: usePlayUrl } = require('stremio/common/usePlayUrl');
 const { withCoreSuspender } = require('stremio/common/CoreSuspender');
 const useSearchHistory = require('./useSearchHistory');
@@ -27,6 +28,7 @@ const SearchBar = React.memo(({ className, query, active }) => {
     const { handlePlayUrl } = usePlayUrl();
 
     const [historyOpen, openHistory, closeHistory, ] = useBinaryState(query === null ? true : false);
+    const [keyboardOpen, openKeyboard, closeKeyboard, ] = useBinaryState(false);
     const [currentQuery, setCurrentQuery] = React.useState(query || '');
     const [, setSearchParams] = useSearchParams();
     const searchInputRef = React.useRef(null);
@@ -66,12 +68,47 @@ const SearchBar = React.memo(({ className, query, active }) => {
 
     const queryInputOnSubmit = React.useCallback((event) => {
         event.preventDefault();
-        const searchValue = `/search?search=${encodeURIComponent(event.target.value)}`;
-        setCurrentQuery(searchValue);
-        if (searchInputRef.current && searchValue) {
-            setSearchParams({ search: event.target.value });
-            closeHistory();
+        const value = event.target.value;
+        // Empty input + Enter: open the on-screen keyboard instead of
+        // submitting a blank search (the natural gamepad flow, since the A
+        // button is mapped to Enter). A non-empty input submits normally.
+        if (!value.trim().length) {
+            openKeyboard();
+            return;
         }
+        setSearchParams({ search: value });
+        closeHistory();
+    }, []);
+
+    // --- Virtual keyboard: drives the existing input via its ref so live
+    // search and history keep working exactly as with a physical keyboard. ---
+    const virtualKeyboardInput = React.useCallback((char) => {
+        if (!searchInputRef.current) return;
+        searchInputRef.current.value += char;
+        queryInputOnChange();
+    }, [queryInputOnChange]);
+
+    const virtualKeyboardBackspace = React.useCallback(() => {
+        if (!searchInputRef.current) return;
+        searchInputRef.current.value = searchInputRef.current.value.slice(0, -1);
+        queryInputOnChange();
+    }, [queryInputOnChange]);
+
+    const virtualKeyboardClear = React.useCallback(() => {
+        if (!searchInputRef.current) return;
+        searchInputRef.current.value = '';
+        queryInputOnChange();
+    }, [queryInputOnChange]);
+
+    const virtualKeyboardSubmit = React.useCallback(() => {
+        if (searchInputRef.current) {
+            const value = searchInputRef.current.value;
+            if (value.trim().length) {
+                setSearchParams({ search: value });
+                closeHistory();
+            }
+        }
+        closeKeyboard();
     }, []);
 
     const queryInputClear = React.useCallback(() => {
@@ -124,6 +161,14 @@ const SearchBar = React.memo(({ className, query, active }) => {
                     </div>
             }
             {
+                active ?
+                    <Button className={styles['submit-button-container']} onClick={openKeyboard} title={'Clavier virtuel'}>
+                        <Icon className={styles['icon']} name={'edit'} />
+                    </Button>
+                    :
+                    null
+            }
+            {
                 currentQuery.length > 0 ?
                     <Button className={styles['submit-button-container']} onClick={queryInputClear}>
                         <Icon className={styles['icon']} name={'close'} />
@@ -174,6 +219,18 @@ const SearchBar = React.memo(({ className, query, active }) => {
                                 null
                         }
                     </div>
+                    :
+                    null
+            }
+            {
+                active && keyboardOpen ?
+                    <VirtualKeyboard
+                        onInput={virtualKeyboardInput}
+                        onBackspace={virtualKeyboardBackspace}
+                        onClearAll={virtualKeyboardClear}
+                        onSubmit={virtualKeyboardSubmit}
+                        onClose={closeKeyboard}
+                    />
                     :
                     null
             }
