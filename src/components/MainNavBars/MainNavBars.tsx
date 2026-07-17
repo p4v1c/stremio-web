@@ -1,6 +1,7 @@
 // Copyright (C) 2017-2023 Smart code 203358507
 
 import React, { memo } from 'react';
+import { useNavigate } from 'react-router';
 import classnames from 'classnames';
 import { VerticalNavBar, HorizontalNavBar } from 'stremio/components/NavBar';
 import { useContentGamepadNavigation, useVerticalNavGamepadNavigation } from 'stremio/services/GamepadNavigation';
@@ -31,24 +32,34 @@ const MainNavBars = memo(({ className, route, query, children }: Props) => {
     useVerticalNavGamepadNavigation(navRef, navRoute);
 
     // TV: move through the nav sections with PageUp / PageDown — the gamepad
-    // bridge maps L1 / R1 to those keys. Strict parity with the desktop
-    // client's useVerticalNavGamepadNavigation: same route order (search
-    // first), clamped at both ends, and the jump goes through the existing
-    // digit shortcuts ('0' = search, '1'-'6' = tabs).
+    // bridge maps L1 / R1 to those keys. Same order and clamping as the
+    // desktop client's useVerticalNavGamepadNavigation (search first, no
+    // wrap-around), but navigating directly: dispatching the digit shortcuts
+    // would be swallowed by ShortcutsProvider whenever an input has focus
+    // (always the case on the search page, where the input is auto-focused).
+    const navigate = useNavigate();
     React.useEffect(() => {
-        const NAV_ROUTES = ['search', 'board', 'discover', 'library', 'calendar', 'addons', 'settings'];
+        const NAV_TABS = [
+            { route: 'search', path: '/search' },
+            { route: 'board', path: '/' },
+            { route: 'discover', path: '/discover' },
+            { route: 'library', path: '/library' },
+            { route: 'calendar', path: '/calendar' },
+            { route: 'addons', path: '/addons' },
+            { route: 'settings', path: '/settings' },
+        ];
         const onKeyDown = (event: KeyboardEvent) => {
             if (event.key !== 'PageUp' && event.key !== 'PageDown') return;
             if (document.querySelector('[data-virtual-keyboard]') !== null) return;
             event.preventDefault();
-            const currentIndex = NAV_ROUTES.indexOf(navRoute);
+            const currentIndex = NAV_TABS.findIndex(({ route }) => route === navRoute);
             if (currentIndex === -1) return;
             const nextIndex = event.key === 'PageDown' ?
-                Math.min(currentIndex + 1, NAV_ROUTES.length - 1)
+                Math.min(currentIndex + 1, NAV_TABS.length - 1)
                 :
                 Math.max(currentIndex - 1, 0);
             if (nextIndex !== currentIndex) {
-                document.dispatchEvent(new KeyboardEvent('keydown', { key: String(nextIndex), code: `Digit${nextIndex}`, bubbles: true }));
+                navigate(NAV_TABS[nextIndex].path);
             }
         };
         document.addEventListener('keydown', onKeyDown);
