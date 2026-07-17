@@ -103,7 +103,7 @@ const VirtualKeyboard = ({ onInput, onBackspace, onClearAll, onSubmit, onClose }
     }, [activate, onClose]);
 
     return createPortal((
-        <div className={styles['virtual-keyboard']}>
+        <div className={styles['virtual-keyboard']} data-virtual-keyboard>
             <div className={styles['backdrop']} onClick={onClose} />
             <div className={styles['keyboard']} role={'dialog'} aria-label={'Clavier virtuel'}>
                 {ROWS.map((keys, rowIndex) => (
