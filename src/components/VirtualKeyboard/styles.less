@@ -1,0 +1,89 @@
+// Copyright (C) 2017-2026 Smart code 203358507
+
+@import (reference) '~@stremio/stremio-colors/less/stremio-colors.less';
+
+.virtual-keyboard {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    .backdrop {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: rgba(0, 0, 0, 0.7);
+    }
+
+    .keyboard {
+        position: relative;
+        z-index: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.75rem;
+        max-width: 90%;
+        padding: 1.5rem;
+        border-radius: var(--border-radius);
+        background-color: var(--modal-background-color);
+        box-shadow: 0 1rem 3rem rgba(0, 0, 0, 0.5);
+
+        .row {
+            display: flex;
+            flex-direction: row;
+            justify-content: center;
+            gap: 0.5rem;
+
+            .key {
+                flex: none;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                min-width: 3.5rem;
+                height: 3.5rem;
+                padding: 0 1rem;
+                border-radius: var(--border-radius);
+                border: 0.125rem solid transparent;
+                background-color: var(--overlay-color);
+                color: var(--primary-foreground-color);
+                font-size: 1.4rem;
+                font-weight: 600;
+                text-transform: uppercase;
+                cursor: pointer;
+                user-select: none;
+
+                &.key-space {
+                    min-width: 12rem;
+                }
+
+                &.key-submit {
+                    background-color: var(--primary-accent-color);
+                    color: white;
+                }
+
+                &.key-clear,
+                &.key-backspace,
+                &.key-close {
+                    font-size: 1rem;
+                }
+
+                // TV focus style: very visible accent border + fill so the
+                // highlighted key reads clearly from across the room.
+                &.focused {
+                    border-color: var(--primary-accent-color);
+                    background-color: var(--primary-accent-color);
+                    color: white;
+                    box-shadow: 0 0 0 0.25rem rgba(255, 255, 255, 0.35), 0 0 1.5rem var(--primary-accent-color);
+                    transform: scale(1.08);
+                }
+            }
+        }
+    }
+}

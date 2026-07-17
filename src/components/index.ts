@@ -30,6 +30,7 @@ import TextInput from './TextInput';
 import Toggle from './Toggle';
 import Transition from './Transition';
 import Video from './Video';
+import VirtualKeyboard from './VirtualKeyboard';
 import ActionsGroup from './ActionsGroup';
 
 export {
@@ -66,5 +67,6 @@ export {
     Toggle,
     Transition,
     Video,
+    VirtualKeyboard,
     ActionsGroup
 };
