@@ -1,7 +1,6 @@
 // Copyright (C) 2017-2023 Smart code 203358507
 
 import React, { memo } from 'react';
-import { useNavigate } from 'react-router';
 import classnames from 'classnames';
 import { VerticalNavBar, HorizontalNavBar } from 'stremio/components/NavBar';
 import { useContentGamepadNavigation, useVerticalNavGamepadNavigation } from 'stremio/services/GamepadNavigation';
@@ -31,20 +30,26 @@ const MainNavBars = memo(({ className, route, query, children }: Props) => {
     useContentGamepadNavigation(contentRef, navRoute);
     useVerticalNavGamepadNavigation(navRef, navRoute);
 
-    // TV: cycle through the vertical nav tabs with PageUp / PageDown — the
-    // gamepad bridge maps L1 / R1 to those keys, mirroring the desktop client.
-    const navigate = useNavigate();
+    // TV: move through the nav sections with PageUp / PageDown — the gamepad
+    // bridge maps L1 / R1 to those keys. Strict parity with the desktop
+    // client's useVerticalNavGamepadNavigation: same route order (search
+    // first), clamped at both ends, and the jump goes through the existing
+    // digit shortcuts ('0' = search, '1'-'6' = tabs).
     React.useEffect(() => {
+        const NAV_ROUTES = ['search', 'board', 'discover', 'library', 'calendar', 'addons', 'settings'];
         const onKeyDown = (event: KeyboardEvent) => {
             if (event.key !== 'PageUp' && event.key !== 'PageDown') return;
-            const target = event.target as HTMLElement;
-            if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target.isContentEditable) return;
             if (document.querySelector('[data-virtual-keyboard]') !== null) return;
             event.preventDefault();
-            const index = TABS.findIndex(({ id }) => id === navRoute);
-            const delta = event.key === 'PageDown' ? 1 : -1;
-            const nextIndex = (Math.max(index, 0) + delta + TABS.length) % TABS.length;
-            navigate(TABS[nextIndex].href);
+            const currentIndex = NAV_ROUTES.indexOf(navRoute);
+            if (currentIndex === -1) return;
+            const nextIndex = event.key === 'PageDown' ?
+                Math.min(currentIndex + 1, NAV_ROUTES.length - 1)
+                :
+                Math.max(currentIndex - 1, 0);
+            if (nextIndex !== currentIndex) {
+                document.dispatchEvent(new KeyboardEvent('keydown', { key: String(nextIndex), code: `Digit${nextIndex}`, bubbles: true }));
+            }
         };
         document.addEventListener('keydown', onKeyDown);
         return () => document.removeEventListener('keydown', onKeyDown);
