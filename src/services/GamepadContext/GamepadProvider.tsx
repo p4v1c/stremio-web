@@ -147,8 +147,11 @@ const GamepadProvider = ({ enabled, onGuide, children }: GamepadProviderProps) =
         const updateStatus = () => {
             if (document.hasFocus()) {
                 const currentTime = Date.now();
+                // Only standard-mapping pads: on Linux the DS4 motion sensors
+                // and touchpad can show up as extra unmapped "gamepads" whose
+                // axes would spam navigation events.
                 const controllers = Array.from(navigator.getGamepads()).filter(
-                    (gp) => gp !== null
+                    (gp) => gp !== null && gp.mapping === 'standard'
                 ) as Gamepad[];
 
                 connectedGamepads.current = controllers.length;
