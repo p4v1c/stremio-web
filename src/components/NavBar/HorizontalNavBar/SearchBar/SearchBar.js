@@ -137,6 +137,12 @@ const SearchBar = React.memo(({ className, query, active }) => {
     React.useEffect(() => {
         if (routeFocused && active) {
             searchInputRef.current.focus();
+            // TV: the search landing has no focusable content, so a gamepad
+            // arriving here (L1 from Board) would be stranded — drop straight
+            // into the on-screen keyboard when there is no query yet.
+            if (!searchInputRef.current.value) {
+                openKeyboard();
+            }
         }
     }, [routeFocused, active]);
 
