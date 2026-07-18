@@ -3,6 +3,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import classnames from 'classnames';
+import { useGamepad } from 'stremio/services';
 import styles from './styles.less';
 
 type Key =
@@ -86,39 +87,63 @@ const VirtualKeyboard = ({ onInput, onBackspace, onClearAll, onSubmit, onClose }
         }
     }, [onInput, onBackspace, onClearAll, onSubmit, onClose]);
 
-    // Keyboard capture: while the overlay is open the arrow keys move the
+    const move = useCallback((direction?: string) => {
+        const { row, col } = posRef.current;
+        const rows = rowsRef.current;
+        switch (direction) {
+            case 'up': {
+                const nextRow = clamp(row - 1, 0, rows.length - 1);
+                setPos({ row: nextRow, col: clamp(col, 0, rows[nextRow].length - 1) });
+                break;
+            }
+            case 'down': {
+                const nextRow = clamp(row + 1, 0, rows.length - 1);
+                setPos({ row: nextRow, col: clamp(col, 0, rows[nextRow].length - 1) });
+                break;
+            }
+            case 'left':
+                setPos({ row, col: clamp(col - 1, 0, rows[row].length - 1) });
+                break;
+            case 'right':
+                setPos({ row, col: clamp(col + 1, 0, rows[row].length - 1) });
+                break;
+        }
+    }, []);
+
+    const activateCurrent = useCallback(() => {
+        const { row, col } = posRef.current;
+        activate(rowsRef.current[row][col]);
+    }, [activate]);
+
+    // Gamepad: same pattern as GamepadModal — lock the gamepad context while
+    // the overlay is open so the spatial navigation behind it stays inert.
+    // D-pad and left stick both emit 'analog', A activates, B closes.
+    const gamepad = useGamepad();
+    useEffect(() => {
+        gamepad?.lock('virtual-keyboard');
+        gamepad?.on('analog', 'virtual-keyboard-nav', move);
+        gamepad?.on('buttonA', 'virtual-keyboard-select', activateCurrent);
+        gamepad?.on('buttonB', 'virtual-keyboard-close', onClose);
+        return () => {
+            gamepad?.off('analog', 'virtual-keyboard-nav');
+            gamepad?.off('buttonA', 'virtual-keyboard-select');
+            gamepad?.off('buttonB', 'virtual-keyboard-close');
+            gamepad?.unlock();
+        };
+    }, [gamepad, move, activateCurrent, onClose]);
+
+    // Physical keyboards: while the overlay is open the arrow keys move the
     // highlighted key instead of the focus/caret of the page behind it.
-    // The gamepad bridge injects real arrow / Enter / Escape keydowns via
-    // uinput, so this handler is what makes the overlay controller-driven.
     useEffect(() => {
         const onKeyDown = (event: KeyboardEvent) => {
-            const { row, col } = posRef.current;
-            const rows = rowsRef.current;
             switch (event.key) {
-                case 'ArrowUp': {
-                    const nextRow = clamp(row - 1, 0, rows.length - 1);
-                    setPos({ row: nextRow, col: clamp(col, 0, rows[nextRow].length - 1) });
-                    break;
-                }
-                case 'ArrowDown': {
-                    const nextRow = clamp(row + 1, 0, rows.length - 1);
-                    setPos({ row: nextRow, col: clamp(col, 0, rows[nextRow].length - 1) });
-                    break;
-                }
-                case 'ArrowLeft':
-                    setPos({ row, col: clamp(col - 1, 0, rows[row].length - 1) });
-                    break;
-                case 'ArrowRight':
-                    setPos({ row, col: clamp(col + 1, 0, rows[row].length - 1) });
-                    break;
-                case 'Enter':
-                    activate(rows[row][col]);
-                    break;
-                case 'Escape':
-                    onClose();
-                    break;
-                default:
-                    return;
+                case 'ArrowUp': move('up'); break;
+                case 'ArrowDown': move('down'); break;
+                case 'ArrowLeft': move('left'); break;
+                case 'ArrowRight': move('right'); break;
+                case 'Enter': activateCurrent(); break;
+                case 'Escape': onClose(); break;
+                default: return;
             }
             // Handled: stop it from reaching the search input / page behind.
             event.preventDefault();
@@ -127,7 +152,7 @@ const VirtualKeyboard = ({ onInput, onBackspace, onClearAll, onSubmit, onClose }
 
         document.addEventListener('keydown', onKeyDown, true);
         return () => document.removeEventListener('keydown', onKeyDown, true);
-    }, [activate, onClose]);
+    }, [move, activateCurrent, onClose]);
 
     return createPortal((
         <div className={styles['virtual-keyboard']} data-virtual-keyboard>

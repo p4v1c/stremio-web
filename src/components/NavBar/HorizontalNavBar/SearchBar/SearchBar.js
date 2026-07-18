@@ -111,6 +111,14 @@ const SearchBar = React.memo(({ className, query, active }) => {
         closeKeyboard();
     }, []);
 
+    // A click on the input opens the on-screen keyboard: with the native
+    // gamepad navigation, pressing A on the focused input dispatches a click,
+    // so this is the natural controller path to start typing.
+    const queryInputOnClick = React.useCallback(() => {
+        openHistory();
+        openKeyboard();
+    }, []);
+
     const queryInputClear = React.useCallback(() => {
         searchInputRef.current.value = '';
         setCurrentQuery('');
@@ -153,7 +161,7 @@ const SearchBar = React.memo(({ className, query, active }) => {
                         onChange={queryInputOnChange}
                         onPaste={queryInputOnPaste}
                         onSubmit={queryInputOnSubmit}
-                        onClick={openHistory}
+                        onClick={queryInputOnClick}
                     />
                     :
                     <div className={styles['search-input']}>

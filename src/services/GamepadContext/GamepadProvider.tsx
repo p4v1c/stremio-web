@@ -174,6 +174,12 @@ const GamepadProvider = ({ enabled, onGuide, children }: GamepadProviderProps) =
                         if (buttonsState & (1 << 3)) emit('buttonY');
                         if (buttonsState & (1 << 4)) emit('buttonLT');
                         if (buttonsState & (1 << 5)) emit('buttonRT');
+                        // D-pad (standard mapping 12-15): same navigation
+                        // events as the left stick, for TV remotes-style use.
+                        if (buttonsState & (1 << 12)) emit('analog', 'up');
+                        if (buttonsState & (1 << 13)) emit('analog', 'down');
+                        if (buttonsState & (1 << 14)) emit('analog', 'left');
+                        if (buttonsState & (1 << 15)) emit('analog', 'right');
                     }
 
                     const deadZone = 0.05;

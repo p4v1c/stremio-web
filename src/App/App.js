@@ -25,7 +25,6 @@ const App = () => {
     const { i18n } = useTranslation();
     const { shell } = usePlatform();
     const navigate = useNavigate();
-    const [gamepadSupportEnabled, setGamepadSupportEnabled] = React.useState(false);
     const services = React.useMemo(() => {
         return {
             chromecast: new Chromecast(),
@@ -134,10 +133,6 @@ const App = () => {
             i18n.changeLanguage(profile.settings.interfaceLanguage);
         }
 
-        if (typeof profile.settings?.gamepadSupport === 'boolean') {
-            setGamepadSupportEnabled(profile.settings.gamepadSupport);
-        }
-
         if (profile.settings?.quitOnClose && shell.state.windowClosed) {
             shell.send('quit');
         }
@@ -184,7 +179,8 @@ const App = () => {
         <ServicesProvider services={services}>
             <ToastProvider className={styles['toasts-container']}>
                 <TooltipProvider className={styles['tooltip-container']}>
-                    <GamepadProvider enabled={gamepadSupportEnabled} onGuide={toggleGamepadModal}>
+                    {/* TV kiosk: gamepad support always on, regardless of the profile setting */}
+                    <GamepadProvider enabled={true} onGuide={toggleGamepadModal}>
                         <ShortcutsProvider onShortcut={onShortcut}>
                             <FullscreenProvider>
                                 <DiscordProvider>
