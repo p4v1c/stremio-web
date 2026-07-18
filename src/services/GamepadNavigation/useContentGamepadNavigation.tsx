@@ -5,6 +5,25 @@ import { useGamepad } from '../GamepadContext';
 
 const FOCUSABLE = '[tabindex]:not([data-focus-guard])';
 
+// Last focused element per scope, remembered by href: pages remount when
+// navigating back from a detail page, so the cursor would otherwise reset —
+// restore it on the item we left from instead.
+const lastFocusedHrefByScope = new Map<string, string>();
+
+const rememberFocus = (scopeId: string, element: HTMLElement | null) => {
+    const href = element?.getAttribute('href');
+    if (href) lastFocusedHrefByScope.set(scopeId, href);
+};
+
+const restoreFocus = (scopeId: string, elements: HTMLElement[]): boolean => {
+    const href = lastFocusedHrefByScope.get(scopeId);
+    if (!href) return false;
+    const element = elements.find((el) => el.getAttribute('href') === href);
+    if (!element) return false;
+    element.focus();
+    return true;
+};
+
 const getActiveScope = (fallback: HTMLDivElement | null): HTMLElement | null => {
     if (document.querySelector('[data-gamepad-modal]')) return null;
 
@@ -48,7 +67,7 @@ const useContentGamepadNavigation = (
             const activeElement = (scope ?? document)?.querySelector<HTMLDivElement>(':focus');
 
             if (!activeElement) {
-                elements[0].focus();
+                restoreFocus(gamepadHandlerId, elements) || elements[0].focus();
                 return;
             }
 
@@ -86,7 +105,8 @@ const useContentGamepadNavigation = (
             });
 
             if (closestElement) {
-                closestElement.focus();
+                (closestElement as HTMLDivElement).focus();
+                rememberFocus(gamepadHandlerId, closestElement);
             }
         };
 
@@ -114,11 +134,12 @@ const useContentGamepadNavigation = (
             const activeElement = (scope ?? document)?.querySelector<HTMLDivElement>(':focus');
 
             if (!activeElement) {
-                elements[0].focus();
+                restoreFocus(gamepadHandlerId, elements) || elements[0].focus();
                 return;
             }
             const isSelect = Array.from(activeElement.classList).some((cls) => cls.startsWith('select-input'));
             if (!isSelect) {
+                rememberFocus(gamepadHandlerId, activeElement);
                 activeElement?.click();
 
                 requestAnimationFrame(() => {
@@ -134,7 +155,24 @@ const useContentGamepadNavigation = (
         gamepad?.on('analog', gamepadHandlerId, handleGamepadNavigation);
         gamepad?.on('buttonA', gamepadHandlerId, onSelect);
 
+        // Put the cursor back where it was as soon as the content renders
+        // (items load asynchronously, hence the short retry loop). Never
+        // steals focus from an element that already has it.
+        let restoreAttempts = 0;
+        const restoreTimer = window.setInterval(() => {
+            restoreAttempts++;
+            const active = document.activeElement;
+            const alreadyFocused = active instanceof HTMLElement && active !== document.body;
+            const elements = Array.from(
+                sectionRef.current?.querySelectorAll<HTMLDivElement>(FOCUSABLE) || []
+            );
+            if (alreadyFocused || restoreFocus(gamepadHandlerId, elements) || restoreAttempts >= 10) {
+                window.clearInterval(restoreTimer);
+            }
+        }, 200);
+
         return () => {
+            window.clearInterval(restoreTimer);
             gamepad?.off('analog', gamepadHandlerId);
             gamepad?.off('buttonA', gamepadHandlerId);
         };
